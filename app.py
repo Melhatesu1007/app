@@ -22,14 +22,33 @@ c.execute('''
 ''')
 conn.commit()
 
-# Check for missing column 'contact' and add if necessary
+# Check for missing columns and add if necessary
 existing_cols = [col[1] for col in c.execute("PRAGMA table_info(reservations);").fetchall()]
 if "contact" not in existing_cols:
     try:
         c.execute("ALTER TABLE reservations ADD COLUMN contact TEXT;")
         conn.commit()
     except Exception:
-        pass  # Ignore if already exists
+        pass
+
+if "table_number" not in existing_cols:
+    try:
+        c.execute("ALTER TABLE reservations ADD COLUMN table_number TEXT;")
+        conn.commit()
+    except Exception:
+        pass
+
+# ------------------------------------------------------------
+# TABLE CAPACITY MAPPING
+# ------------------------------------------------------------
+TABLES = {
+    "Table 1": 2,
+    "Table 2": 4,
+    "Table 3": 4,
+    "Table 4": 6,
+    "Table 5": 6,
+    "Table 6": 8
+}
 
 # ------------------------------------------------------------
 # STREAMLIT UI
@@ -60,12 +79,23 @@ if role == "Customer":
             if name.strip() == "" or contact.strip() == "":
                 st.warning("⚠️ Please fill in both Name and Contact.")
             else:
-                c.execute("""
-                    INSERT INTO reservations (name, contact, date, time, guests, status)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (name, contact, str(date), str(time), guests, "Confirmed"))
-                conn.commit()
-                st.success("✅ Reservation Confirmed!")
+                # Auto-assign table based on group size
+                assigned_table = None
+                for table, capacity in TABLES.items():
+                    if guests <= capacity:
+                        assigned_table = table
+                        break
+
+                if assigned_table is None:
+                    st.error("❌ No suitable table available for that group size.")
+                else:
+                    formatted_time = time.strftime("%I:%M %p")
+                    c.execute("""
+                        INSERT INTO reservations (name, contact, date, time, guests, status, table_number)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (name, contact, str(date), formatted_time, guests, "Confirmed", assigned_table))
+                    conn.commit()
+                    st.success(f"✅ Reservation Confirmed! Assigned to {assigned_table}")
 
     # View reservations tab
     with tab2:
@@ -79,7 +109,8 @@ if role == "Customer":
                 if df.empty:
                     st.info("No reservations found for this contact.")
                 else:
-                    st.dataframe(df)
+                    df['time'] = pd.to_datetime(df['time'], errors='coerce').dt.strftime("%I:%M %p")
+                    st.dataframe(df[['id', 'name', 'date', 'time', 'guests', 'status', 'table_number']])
 
 # ------------------------------------------------------------
 # ADMIN INTERFACE
@@ -99,7 +130,8 @@ elif role == "Admin":
             if df.empty:
                 st.info("No reservations yet.")
             else:
-                st.dataframe(df)
+                df['time'] = pd.to_datetime(df['time'], errors='coerce').dt.strftime("%I:%M %p")
+                st.dataframe(df[['id', 'name', 'date', 'time', 'guests', 'status', 'table_number']])
 
         # Manage reservations
         with tab2:
@@ -108,7 +140,6 @@ elif role == "Admin":
             action = st.selectbox("Select Action:", ["Cancel Reservation", "Mark as Completed"])
 
             if st.button("Update Status"):
-                # Check if reservation exists first
                 c.execute("SELECT * FROM reservations WHERE id=?", (res_id,))
                 if c.fetchone():
                     new_status = "Cancelled" if action == "Cancel Reservation" else "Completed"
