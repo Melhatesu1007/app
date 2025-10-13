@@ -1,6 +1,7 @@
 APPLICATION PROJECT IN ELECTIVES, SOFTWARE LEC AND LAB
 
 Project Overview
+
 ReserVision is an artificial intelligence (AI)-simulated small café table reservation system designed specifically for 5&2 Coffeehouse.
 It provides customers with the possibility to smartly book tables through an AI-supported table assignment system, moreover the admins can control tables, supervise reservations, and check system activities— all in real-time.
 The whole system is implemented in Python utilizing Streamlit as the client side framework and SQLite as the data source for storing non-volatile data on the back end.
