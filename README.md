@@ -52,4 +52,5 @@ Team ReserVision
 Caniedo Mark Nicolai M. 
 Lagrimas, Melito Jr A.
 Pamandanan, Karl Louise B.
+Yape, John Ivan M. - CPELX230 (COE221)
 COE222
